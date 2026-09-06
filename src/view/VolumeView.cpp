@@ -49,11 +49,13 @@ void VolumeView::setVolume(vtkImageData* image, TransferPreset preset)
     m_mapper->SetInputData(image);
     m_volume->SetProperty(TransferFunctionFactory::createVolumeProperty(preset));
     m_renderer->ResetCamera();
-    m_vtkWidget->renderWindow()->Render();
+    // 不在此显式 Render()：setVolume 在视图未 show 时被调用, 此时无 OpenGL
+    // 上下文, Render 会崩溃。改由 Qt 在 widget show/paint 时自动渲染。
+    m_vtkWidget->update();
 }
 
 void VolumeView::setPreset(TransferPreset preset)
 {
     m_volume->SetProperty(TransferFunctionFactory::createVolumeProperty(preset));
-    m_vtkWidget->renderWindow()->Render();
+    m_vtkWidget->update();
 }

@@ -180,6 +180,11 @@ void MainWindow::onLoadFinished(const Volume& volume)
     setupMprViews(volume);
 }
 
+void MainWindow::showVolumeForTest(const Volume& volume)
+{
+    setupMprViews(volume);
+}
+
 void MainWindow::setupMprViews(const Volume& volume)
 {
     // 共享十字线光标：三个视图的光标中心/轴向全局唯一，十字线自动同步

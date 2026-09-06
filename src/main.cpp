@@ -13,6 +13,7 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QSurfaceFormat>
+#include <QTimer>
 #include <QVTKOpenGLNativeWidget.h>
 
 #include <QFileInfo>
@@ -165,6 +166,26 @@ int main(int argc, char* argv[])
             return runLoadSmokeTest(args[i + 1]);
         if (args[i] == QStringLiteral("--render-smoke-test") && i + 1 < args.size())
             return runRenderSmokeTest(args[i + 1]);
+        if (args[i] == QStringLiteral("--view-smoke-test") && i + 1 < args.size()) {
+            // 生成 + 加载体数据，直接显示四视图，3 秒后退出(复现崩溃用)
+            QString error;
+            if (!TestDataGenerator::generate(args[i + 1], &error)) {
+                QTextStream(stdout) << "生成失败: " << error << '\n';
+                return 2;
+            }
+            DicomScanner scanner;
+            const QList<SeriesInfo> series = scanner.scanDirectory(args[i + 1]);
+            if (series.isEmpty()) return 3;
+            Volume v = VolumeLoader::load(series.first().filePaths);
+            if (!v.isValid()) return 4;
+
+            MainWindow w;
+            w.showVolumeForTest(v);
+            w.resize(1280, 800);
+            w.show();
+            QTimer::singleShot(3000, &app, &QApplication::quit);
+            return app.exec();
+        }
     }
 
     LOG_INFO(lcApp, "应用启动: " << AppStrings::kAppDisplayName);

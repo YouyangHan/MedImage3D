@@ -30,6 +30,9 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override;
 
+    // 测试/调试用：直接显示体数据四视图(绕过扫描/选择流程)
+    void showVolumeForTest(const Volume& volume);
+
 private slots:
     void onOpenCtDirectory();
     void onScanFinished(const QList<SeriesInfo>& series);

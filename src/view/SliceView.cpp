@@ -24,6 +24,10 @@ SliceView::SliceView(QWidget* parent)
 
     // 十字线 widget 需要 interactor
     m_viewer->SetupInteractor(m_vtkWidget->interactor());
+
+    // interactor 设置后切换到斜切模式(OBLIQUE)：启用十字线 widget 显示红蓝绿线，
+    // 切片由光标平面决定，三视图共享光标即可联动。
+    m_viewer->SetResliceModeToOblique();
 }
 
 SliceView::~SliceView() = default;

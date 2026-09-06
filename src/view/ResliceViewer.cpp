@@ -13,10 +13,10 @@ vtkStandardNewMacro(ResliceViewer);
 
 ResliceViewer::ResliceViewer()
 {
-    // 轴对齐模式(正交切片)；斜切模式留给后续扩展
-    this->SetResliceModeToAxisAligned();
     // 滚轮翻层
     this->SetSliceScrollOnMouseWheel(1);
+    // 注：斜切模式(OBLIQUE, 显示十字线并联动)需在 interactor 设置后切换，
+    // 由 SliceView 构造在 SetupInteractor 之后调用 SetResliceModeToOblique()。
 }
 
 ResliceViewer::~ResliceViewer() = default;

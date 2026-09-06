@@ -107,7 +107,6 @@ void ViewManager::setVolume(const Volume& volume)
     for (SliceView* sv : m_sliceViews) {
         sv->setVolume(volume.imageData);
         sv->setSharedCursor(m_cursor);
-        sv->synchronizeFromCursor();   // 初始按中心定位切片
     }
     m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
 }
@@ -119,17 +118,17 @@ void ViewManager::setPreset(TransferPreset preset)
 
 void ViewManager::onCursorChanged()
 {
-    // 光标中心变化(十字线拖动) -> 三个切片视图按中心同步切片位置
-    for (SliceView* sv : m_sliceViews) {
-        sv->synchronizeFromCursor();
+    // OBLIQUE(斜切)模式下三视图共享同一光标，光标中心/平面变化已自动同步几何，
+    // 这里只需刷新各视图渲染即可。
+    for (SliceView* sv : m_sliceViews)
         sv->viewer()->Render();
-    }
 }
 
 void ViewManager::onSliceChanged(SliceView* source)
 {
-    // 某视图滚轮翻层 -> 更新光标中心 -> 触发 ResliceAxesChangedEvent 广播
-    if (!source)
-        return;
-    source->synchronizeToCursor();
+    Q_UNUSED(source);
+    // 滚轮翻层在 OBLIQUE 模式下已移动共享光标中心，其余视图随之改变，
+    // 只需刷新三视图渲染。
+    for (SliceView* sv : m_sliceViews)
+        sv->viewer()->Render();
 }

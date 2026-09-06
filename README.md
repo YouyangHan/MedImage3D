@@ -92,7 +92,7 @@ ThirdParty\scripts\build_app.bat
 | 5 | VolumeView + TransferFunctionFactory（体绘制） | ✅ | [07](docs/07-体绘制视图.md) |
 | 6 | ViewManager 四视图联动 | ✅ | [08](docs/08-四视图联动.md) |
 | 7 | SeriesSelectDialog 序列选择界面 | ✅ | [04](docs/04-DICOM扫描与序列分组.md) |
-| 8 | MainWindow + AppController 工作流状态机 | ⬜ | 10 |
+| 8 | MainWindow + AppController 工作流状态机 | ✅ | [10](docs/10-主窗口与工作流.md) |
 
 ## 开发文档
 
@@ -104,6 +104,7 @@ ThirdParty\scripts\build_app.bat
 - [06 - MPR 切片视图](docs/06-MPR切片视图.md)：ResliceViewer/SliceView 三视图基础
 - [07 - 体绘制视图](docs/07-体绘制视图.md)：VolumeView/TransferFunctionFactory 三维体绘制与传递函数预设
 - [08 - 四视图联动](docs/08-四视图联动.md)：ViewManager 四视图编排与十字线/翻层联动
+- [10 - 主窗口与工作流](docs/10-主窗口与工作流.md)：AppController 状态机 + 工具栏图标/ToolTip
 
 ## 许可证
 

@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>icons/action_open_ct.svg</file>
+        <file>icons/action_reconstruct.svg</file>
+        <file>icons/action_preset.svg</file>
+        <file>icons/action_reset.svg</file>
+    </qresource>
+</RCC>

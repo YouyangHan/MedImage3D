@@ -46,6 +46,11 @@ inline const QString kLabelPatientName = QStringLiteral("患者");
 inline const QString kLabelStudyDate   = QStringLiteral("检查日期");
 inline const QString kLabelSeries      = QStringLiteral("序列");
 inline const QString kLabelImageCount  = QStringLiteral("张");
+inline const QString kLabelModality    = QStringLiteral("设备");
+inline const QString kLabelSlice       = QStringLiteral("层");
+
+// ---- 序列选择对话框提示 ----
+inline const QString kHintSelectSeries = QStringLiteral("请选择一个序列");
 
 // ---- 错误提示 ----
 inline const QString kErrNoDicomFiles = QStringLiteral("所选目录中没有找到 DICOM 文件");

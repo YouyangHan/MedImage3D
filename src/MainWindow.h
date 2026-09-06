@@ -1,15 +1,20 @@
 #pragma once
 
+#include "dicom/SeriesInfo.h"
+
 #include <QMainWindow>
 
-class QVTKOpenGLNativeWidget;
-class vtkRenderer;
+class QProgressDialog;
+class SeriesSelectPanel;
 
 /**
- * @brief 主窗口 —— 环境验证骨架
+ * @brief 主窗口 —— 序列选择面板嵌入中央区域(步骤 2)
  *
- * 当前功能: 在 QVTKOpenGLNativeWidget 中渲染一个 VTK 圆锥体,
- * 并在状态栏显示 VTK / ITK / DCMTK 的版本号, 用于验证三方库链接正确。
+ * 工作流：
+ *   点击"选择 CT 序列目录" -> 后台扫描(进度弹窗) -> 序列列表填充
+ *   -> 预览图可拖动/滚轮切层 -> 点击"三维重建"(步骤 3 起加载体数据)。
+ *
+ * 渲染区(四视图)在后续步骤替换中央面板。
  */
 class MainWindow : public QMainWindow
 {
@@ -17,11 +22,20 @@ class MainWindow : public QMainWindow
 
 public:
     explicit MainWindow(QWidget* parent = nullptr);
-    ~MainWindow() override = default;
+    ~MainWindow() override;
+
+private slots:
+    // 工具栏"选择 CT 序列目录"：选择目录并启动后台扫描
+    void onOpenCtDirectory();
+    // 扫描线程结束：隐藏进度框，填充序列面板
+    void onScanFinished(const QList<SeriesInfo>& series);
+    // 序列面板「三维重建」按钮(步骤 3 起接入体数据加载)
+    void onReconstructRequested(int seriesRow);
 
 private:
-    void setupRenderDemo();
+    void setupActions();                 // 构建工具栏与动作
+    void startScan(const QString& dirPath);
 
-    QVTKOpenGLNativeWidget* m_vtkWidget = nullptr;
-    vtkRenderer*            m_renderer  = nullptr;
+    SeriesSelectPanel* m_seriesPanel = nullptr;  // 中央序列选择面板
+    QProgressDialog*   m_scanProgress = nullptr; // 扫描进度弹窗
 };

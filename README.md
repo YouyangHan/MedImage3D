@@ -86,7 +86,7 @@ ThirdParty\scripts\build_app.bat
 | 步骤 | 内容 | 状态 | 文档 |
 |---|---|---|---|
 | 1 | 基础设施 + 资源（Singleton/Logging/Settings/MathUtils） | ✅ | [03](docs/03-基础设施与资源.md) |
-| 2 | DicomScanner + DicomTagReader（目录扫描 + 序列分组） | ⬜ | 04 |
+| 2 | DicomScanner + DicomTagReader（目录扫描 + 序列分组） | ✅ | [04](docs/04-DICOM扫描与序列分组.md) |
 | 3 | VolumeLoader + LoadThread + Volume + DataRepository | ⬜ | 05 |
 | 4 | ResliceViewer + SliceView（MPR 切片视图） | ⬜ | 06 |
 | 5 | VolumeView + TransferFunctionFactory（体绘制） | ⬜ | 07 |
@@ -99,6 +99,7 @@ ThirdParty\scripts\build_app.bat
 - [01 - 环境搭建](docs/01-环境搭建.md)：版本选型分析、第三方库编译、相对路径约定、FAQ
 - [02 - 架构设计](docs/02-架构设计.md)：分层架构、工作流状态机、重建原理、设计模式清单
 - [03 - 基础设施与资源](docs/03-基础设施与资源.md)：common/resources 两层的关键代码与位置
+- [04 - DICOM 扫描与序列分组](docs/04-DICOM扫描与序列分组.md)：DicomScanner/DicomTagReader 数据导入与序列选择界面
 
 ## 许可证
 

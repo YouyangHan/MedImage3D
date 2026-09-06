@@ -62,8 +62,17 @@ void ResliceViewer::setSliceOrientation(int orientation)
 
 void ResliceViewer::setSharedCursor(vtkResliceCursor* cursor)
 {
-    if (cursor)
-        this->SetResliceCursor(cursor);
+    if (!cursor)
+        return;
+    this->SetResliceCursor(cursor);
+
+    // SetResliceCursor 只替换光标引用，不重建十字线 polydata；
+    // 显式重建 representation，让红蓝绿参考线按新光标显示。
+    if (vtkResliceCursorRepresentation* rep =
+            vtkResliceCursorRepresentation::SafeDownCast(
+                this->GetResliceCursorWidget()->GetRepresentation())) {
+        rep->BuildRepresentation();
+    }
 }
 
 void ResliceViewer::synchronizeFromCursor()

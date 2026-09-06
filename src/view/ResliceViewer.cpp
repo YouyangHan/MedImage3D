@@ -3,12 +3,18 @@
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
 #include <vtkObjectFactory.h>
+#include <vtkPolyData.h>
+#include <vtkProperty.h>
+#include <vtkRenderer.h>
 #include <vtkResliceCursor.h>
+#include <vtkResliceCursorActor.h>
+#include <vtkResliceCursorLineRepresentation.h>
 #include <vtkResliceCursorPolyDataAlgorithm.h>
 #include <vtkResliceCursorRepresentation.h>
 #include <vtkResliceCursorWidget.h>
 
 #include <cmath>
+#include <iostream>
 
 vtkStandardNewMacro(ResliceViewer);
 
@@ -42,6 +48,40 @@ void ResliceViewer::setVolume(vtkImageData* image)
     // 关键：SetInputData 之后光标才有图像，此时启用十字线 widget 才能正确
     // 显示红蓝绿参考线(参考 3d-xmake 在 SetInputData 后调用 On())。
     this->GetResliceCursorWidget()->On();
+
+    // 诊断 + 显式设置十字线颜色/线宽
+    vtkResliceCursorWidget* w = this->GetResliceCursorWidget();
+    std::cerr << "[十字线诊断] enabled=" << w->GetEnabled()
+              << " renderer=" << (this->GetRenderer() ? "有" : "无")
+              << " rep=" << (w->GetRepresentation() ? w->GetRepresentation()->GetClassName() : "null");
+    if (vtkResliceCursor* rc = this->GetResliceCursor()) {
+        int npts[3] = { -1, -1, -1 };
+        for (int i = 0; i < 3; ++i) {
+            if (vtkPolyData* pd = rc->GetCenterlineAxisPolyData(i))
+                npts[i] = pd->GetNumberOfPoints();
+        }
+        std::cerr << " centerlinePts=" << npts[0] << ',' << npts[1] << ',' << npts[2];
+    } else {
+        std::cerr << " cursor=null";
+    }
+    if (auto* lineRep = vtkResliceCursorLineRepresentation::SafeDownCast(w->GetRepresentation())) {
+        auto* actor = lineRep->GetResliceCursorActor();
+        const double colors[3][3] = { {1,0,0}, {0,1,0}, {0,0,1} };
+        for (int i = 0; i < 3; ++i) {
+            vtkProperty* p = actor->GetCenterlineActor(i)->GetProperty();
+            p->SetColor(colors[i][0], colors[i][1], colors[i][2]);
+            p->SetEdgeColor(colors[i][0], colors[i][1], colors[i][2]);
+            p->SetEdgeVisibility(1);
+            p->SetLighting(0);       // 线无需光照
+            p->SetLineWidth(3);      // 加粗，便于观察
+            std::cerr << " vis" << i << "=" << actor->GetCenterlineActor(i)->GetVisibility();
+        }
+    }
+    if (this->GetRenderer()) {
+        std::cerr << " actors=" << this->GetRenderer()->GetActors()->GetNumberOfItems()
+                  << " viewProps=" << this->GetRenderer()->GetViewProps()->GetNumberOfItems();
+    }
+    std::cerr << std::endl;
 }
 
 void ResliceViewer::setSliceOrientation(int orientation)

@@ -3,12 +3,12 @@
 #include "common/Settings.h"
 #include "core/Volume.h"
 #include "dicom/DicomScanner.h"
+#include "dicom/LoadThread.h"
 #include "dicom/SeriesInfo.h"
 #include "dicom/TestDataGenerator.h"
 #include "dicom/VolumeLoader.h"
 #include "resources/paths.h"
 #include "resources/strings.h"
-#include "view/ResliceViewer.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -16,12 +16,7 @@
 #include <QTimer>
 #include <QVTKOpenGLNativeWidget.h>
 
-#include <QFileInfo>
 #include <QTextStream>
-
-#include <vtkGenericOpenGLRenderWindow.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkResliceCursor.h>
 
 namespace {
 
@@ -85,51 +80,34 @@ int runLoadSmokeTest(const QString& dirPath)
     return 0;
 }
 
-// 命令行自检：加载体数据后用 offscreen 渲染三个 MPR 视图(共享光标)，
-// 验证"三视图搭建 + 渲染"不崩溃。
-int runRenderSmokeTest(const QString& dirPath)
+// 命令行自检：走真实异步加载路径(LoadThread -> 队列连接 -> 四视图)，3 秒后退出。
+// 用于验证"扫描 -> 加载 -> 四视图渲染"完整链路不崩溃。
+int runViewSmokeTest(const QString& dirPath)
 {
     QString error;
     if (!TestDataGenerator::generate(dirPath, &error)) {
-        QTextStream(stdout) << "生成测试数据失败: " << error << '\n';
+        QTextStream(stdout) << "生成失败: " << error << '\n';
         return 2;
     }
     DicomScanner scanner;
     const QList<SeriesInfo> series = scanner.scanDirectory(dirPath);
-    if (series.isEmpty()) { QTextStream(stdout) << "扫描无结果\n"; return 3; }
+    if (series.isEmpty()) return 3;
 
-    Volume v = VolumeLoader::load(series.first().filePaths);
-    if (!v.isValid()) { QTextStream(stdout) << "体数据加载失败\n"; return 4; }
+    MainWindow w;
+    w.resize(1280, 800);
+    w.show();
 
-    // 共享光标
-    auto cursor = vtkSmartPointer<vtkResliceCursor>::New();
-    cursor->SetImage(v.imageData);
-    cursor->SetCenter(v.imageData->GetCenter());
+    auto* thread = new LoadThread(series.first().filePaths);
+    QObject::connect(thread, &LoadThread::loadFinished, &w, [&w, thread]() {
+        // 主线程做 VTK 桥接(涉及 VTK, 必须主线程)
+        Volume v = VolumeLoader::convertToVolume(thread->image());
+        w.showVolumeForTest(v);
+    });
+    QObject::connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
 
-    const int orientations[3] = {
-        vtkImageViewer2::SLICE_ORIENTATION_XY,
-        vtkImageViewer2::SLICE_ORIENTATION_YZ,
-        vtkImageViewer2::SLICE_ORIENTATION_XZ,
-    };
-
-    QTextStream out(stdout);
-    for (int i = 0; i < 3; ++i) {
-        auto viewer = vtkSmartPointer<ResliceViewer>::New();
-        auto rw = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
-        rw->SetOffScreenRendering(1);
-        viewer->SetRenderWindow(rw);
-        auto inter = vtkSmartPointer<vtkRenderWindowInteractor>::New();
-        inter->SetRenderWindow(rw);
-        viewer->SetupInteractor(inter);
-
-        viewer->setVolume(v.imageData);
-        viewer->setSliceOrientation(orientations[i]);
-        viewer->setSharedCursor(cursor);
-        rw->Render();
-        out << "视图 " << i << " 渲染成功\n";
-    }
-    out << "三视图渲染自检通过\n";
-    return 0;
+    QTimer::singleShot(3000, &QCoreApplication::quit);
+    return QCoreApplication::exec();
 }
 
 } // namespace
@@ -144,13 +122,14 @@ int main(int argc, char* argv[])
     QApplication::setOrganizationName(AppPaths::kOrgName);
 
     // 跨线程信号经队列连接传递自定义类型，需提前注册元类型，Qt 才能拷贝参数：
-    //   ScanThread -> QList<SeriesInfo>；LoadThread -> Volume
+    //   ScanThread -> QList<SeriesInfo>；LoadThread 主线程取 image，无 Volume 跨线程传递
     qRegisterMetaType<QList<SeriesInfo>>("QList<SeriesInfo>");
-    qRegisterMetaType<Volume>("Volume");
 
-    // ---- 命令行自检开关(无界面) ----
-    //   --gen-test-data <目录>   生成测试数据
-    //   --scan-smoke-test <目录> 生成数据并扫描自检
+    // ---- 命令行自检开关(无界面/冒烟测试) ----
+    //   --gen-test-data <目录>    生成测试数据
+    //   --scan-smoke-test <目录>  生成数据并扫描自检
+    //   --load-smoke-test <目录>  生成数据并加载体数据自检
+    //   --view-smoke-test <目录>  异步加载并显示四视图自检
     const QStringList args = QCoreApplication::arguments();
     for (int i = 1; i < args.size(); ++i) {
         if (args[i] == QStringLiteral("--gen-test-data") && i + 1 < args.size()) {
@@ -164,28 +143,8 @@ int main(int argc, char* argv[])
             return runScanSmokeTest(args[i + 1]);
         if (args[i] == QStringLiteral("--load-smoke-test") && i + 1 < args.size())
             return runLoadSmokeTest(args[i + 1]);
-        if (args[i] == QStringLiteral("--render-smoke-test") && i + 1 < args.size())
-            return runRenderSmokeTest(args[i + 1]);
-        if (args[i] == QStringLiteral("--view-smoke-test") && i + 1 < args.size()) {
-            // 生成 + 加载体数据，直接显示四视图，3 秒后退出(复现崩溃用)
-            QString error;
-            if (!TestDataGenerator::generate(args[i + 1], &error)) {
-                QTextStream(stdout) << "生成失败: " << error << '\n';
-                return 2;
-            }
-            DicomScanner scanner;
-            const QList<SeriesInfo> series = scanner.scanDirectory(args[i + 1]);
-            if (series.isEmpty()) return 3;
-            Volume v = VolumeLoader::load(series.first().filePaths);
-            if (!v.isValid()) return 4;
-
-            MainWindow w;
-            w.showVolumeForTest(v);
-            w.resize(1280, 800);
-            w.show();
-            QTimer::singleShot(3000, &app, &QApplication::quit);
-            return app.exec();
-        }
+        if (args[i] == QStringLiteral("--view-smoke-test") && i + 1 < args.size())
+            return runViewSmokeTest(args[i + 1]);
     }
 
     LOG_INFO(lcApp, "应用启动: " << AppStrings::kAppDisplayName);

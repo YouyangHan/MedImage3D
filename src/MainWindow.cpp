@@ -27,15 +27,19 @@
 #include <QGridLayout>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QStackedWidget>
 #include <QStatusBar>
 #include <QToolBar>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    // 中央区域：序列选择面板(扫描完成后展示, 加载完成后由四视图替换)
+    // 中央区域：用 QStackedWidget 承载"序列面板"和"四视图"两页，
+    // 用 setCurrentWidget 切换(避免运行期 setCentralWidget 触发 Qt6 RHI 崩溃)。
     m_seriesPanel = new SeriesSelectPanel(this);
-    setCentralWidget(m_seriesPanel);
+    m_stack = new QStackedWidget(this);
+    m_stack->addWidget(m_seriesPanel);
+    setCentralWidget(m_stack);
     connect(m_seriesPanel, &SeriesSelectPanel::reconstructRequested,
             this, &MainWindow::onReconstructRequested);
 
@@ -118,7 +122,7 @@ void MainWindow::onScanFinished(const QList<SeriesInfo>& series)
 
     LOG_INFO(lcDicom, "扫描得到 " << series.size() << " 个序列");
     m_seriesPanel->setSeries(series);
-    setCentralWidget(m_seriesPanel);   // 重新扫描时切回序列面板
+    m_stack->setCurrentWidget(m_seriesPanel);   // 重新扫描时切回序列面板
 }
 
 void MainWindow::onReconstructRequested(const SeriesInfo& series)
@@ -154,10 +158,16 @@ void MainWindow::startLoad(const SeriesInfo& series)
     thread->start();
 }
 
-void MainWindow::onLoadFinished(const Volume& volume)
+void MainWindow::onLoadFinished()
 {
     if (m_loadProgress)
         m_loadProgress->hide();
+
+    // 从 sender 取后台线程，主线程做 ITK->VTK 桥接(涉及 VTK, 必须主线程)
+    auto* thread = qobject_cast<LoadThread*>(sender());
+    if (!thread)
+        return;
+    Volume volume = VolumeLoader::convertToVolume(thread->image());
 
     if (!volume.isValid()) {
         QMessageBox::warning(this, AppStrings::kAppDisplayName,
@@ -220,6 +230,9 @@ void MainWindow::setupMprViews(const Volume& volume)
         m_volumeView = new VolumeView(m_viewContainer);
         m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
         grid->addWidget(m_volumeView, 1, 1);
+
+        // 加入页面栈并切换(首次)
+        m_stack->addWidget(m_viewContainer);
     } else {
         // 已创建：重新加载新体数据到各视图
         for (SliceView* sv : m_sliceViews) {
@@ -229,5 +242,5 @@ void MainWindow::setupMprViews(const Volume& volume)
         m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
     }
 
-    setCentralWidget(m_viewContainer);
+    m_stack->setCurrentWidget(m_viewContainer);
 }

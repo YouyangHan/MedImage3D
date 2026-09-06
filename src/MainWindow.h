@@ -9,6 +9,7 @@
 #include <vtkSmartPointer.h>
 
 class QProgressDialog;
+class QStackedWidget;
 class SeriesSelectPanel;
 class SliceView;
 class VolumeView;
@@ -37,7 +38,7 @@ private slots:
     void onOpenCtDirectory();
     void onScanFinished(const QList<SeriesInfo>& series);
     void onReconstructRequested(const SeriesInfo& series);
-    void onLoadFinished(const Volume& volume);
+    void onLoadFinished();
 
 private:
     void setupActions();                   // 构建工具栏与动作
@@ -46,6 +47,7 @@ private:
     void setupMprViews(const Volume& volume);   // 构建/刷新三视图
 
     SeriesSelectPanel* m_seriesPanel = nullptr;   // 序列选择面板
+    QStackedWidget*    m_stack = nullptr;         // 页面栈(序列面板 <-> 四视图)
     QProgressDialog*   m_scanProgress = nullptr;  // 扫描进度弹窗
     QProgressDialog*   m_loadProgress = nullptr;  // 加载进度弹窗
 

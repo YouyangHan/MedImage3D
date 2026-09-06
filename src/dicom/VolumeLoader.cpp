@@ -54,59 +54,70 @@ private:
 
 } // namespace
 
-Volume VolumeLoader::load(const QStringList& filePaths, ProgressCallback progress)
+VolumeLoader::ImagePointer VolumeLoader::loadItk(const QStringList& filePaths,
+                                                 ProgressCallback progress)
 {
-    Volume volume;
     if (filePaths.isEmpty()) {
         LOG_WARN(lcDicom, "体数据加载: 文件列表为空");
-        return volume;
+        return nullptr;
     }
 
-    // CT 序列存 signed short(HU 值可正可负)，与 DCMTK 头解析约定一致
-    using PixelType = signed short;
-    using ImageType = itk::Image<PixelType, 3>;
     using ReaderType = itk::ImageSeriesReader<ImageType>;
-    using BridgeType = itk::ImageToVTKImageFilter<ImageType>;
 
     try {
         auto reader = ReaderType::New();
         reader->SetImageIO(itk::GDCMImageIO::New());   // GDCM 解析像素 + spacing/origin
 
-        // 把 QStringList 转成 ITK 需要的 std::vector<std::string>
         std::vector<std::string> names;
         names.reserve(static_cast<size_t>(filePaths.size()));
         for (const QString& p : filePaths)
             names.push_back(p.toStdString());
         reader->SetFileNames(names);
 
-        // 挂进度观察者
         if (progress) {
             auto cmd = LoadProgressCommand::New();
             cmd->callback = progress;
             reader->AddObserver(itk::ProgressEvent(), cmd);
         }
 
-        reader->Update();   // 读取全部切片
+        reader->Update();   // 读取全部切片(纯 ITK, 线程安全)
 
-        // ITK -> VTK 桥接，得到 vtkImageData
+        return reader->GetOutput();
+    }
+    catch (const itk::ExceptionObject& e) {
+        LOG_ERROR(lcDicom, "ITK 加载失败: " << e.GetDescription());
+        return nullptr;
+    }
+}
+
+Volume VolumeLoader::convertToVolume(ImagePointer image)
+{
+    Volume volume;
+    if (!image) {
+        LOG_WARN(lcDicom, "convertToVolume: 输入 image 为空");
+        return volume;
+    }
+
+    using BridgeType = itk::ImageToVTKImageFilter<ImageType>;
+
+    try {
+        // ITK -> VTK 桥接(须在主线程)
         auto bridge = BridgeType::New();
-        bridge->SetInput(reader->GetOutput());
+        bridge->SetInput(image);
         bridge->Update();
 
-        // ITK 桥接默认用 vtkImageImport 引用 ITK image 的缓冲区(不拷贝)，
-        // reader 在 load() 返回后销毁会导致标量数据悬空。这里 DeepCopy 让
-        // vtkImageData 拥有独立数据副本(体数据内存翻倍，但消除悬空隐患)。
+        // ITK 桥接默认引用 ITK 缓冲区(不拷贝)，这里 DeepCopy 让 vtkImageData
+        // 拥有独立数据副本(消除悬空隐患)。
         vtkNew<vtkImageData> copied;
         copied->DeepCopy(bridge->GetOutput());
         volume.imageData = copied;
 
         // 提取几何信息(ITK 已根据 DICOM 自动解析)
-        const ImageType* img = reader->GetOutput();
-        const auto& sp = img->GetSpacing();
+        const auto& sp = image->GetSpacing();
         volume.spacing = { sp[0], sp[1], sp[2] };
-        const auto& o = img->GetOrigin();
+        const auto& o = image->GetOrigin();
         volume.origin = { o[0], o[1], o[2] };
-        const auto& sz = img->GetLargestPossibleRegion().GetSize();
+        const auto& sz = image->GetLargestPossibleRegion().GetSize();
         volume.dimensions = { static_cast<int>(sz[0]),
                               static_cast<int>(sz[1]),
                               static_cast<int>(sz[2]) };
@@ -115,9 +126,15 @@ Volume VolumeLoader::load(const QStringList& filePaths, ProgressCallback progres
                  << " 间距 " << sp[0] << '/' << sp[1] << '/' << sp[2]);
     }
     catch (const itk::ExceptionObject& e) {
-        LOG_ERROR(lcDicom, "ITK 加载失败: " << e.GetDescription());
+        LOG_ERROR(lcDicom, "ITK->VTK 桥接失败: " << e.GetDescription());
         volume.reset();
     }
 
     return volume;
+}
+
+Volume VolumeLoader::load(const QStringList& filePaths, ProgressCallback progress)
+{
+    // 同步：加载 + 桥接(主线程内完成)
+    return convertToVolume(loadItk(filePaths, progress));
 }

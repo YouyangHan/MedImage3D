@@ -14,6 +14,7 @@
 #include <vtkResliceCursorRepresentation.h>
 #include <vtkResliceCursorWidget.h>
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -50,11 +51,25 @@ void ResliceViewer::setVolume(vtkImageData* image)
     // 显示红蓝绿参考线(参考 3d-xmake 在 SetInputData 后调用 On())。
     this->GetResliceCursorWidget()->On();
 
+    // 调整相机平行缩放(SetInputData 可能重置相机)，确保十字线/切片在视口内
+    if (this->GetRenderer()) {
+        double sp[3];
+        int dim[3];
+        image->GetSpacing(sp);
+        image->GetDimensions(dim);
+        double maxExtent = 1.0;
+        for (int i = 0; i < 3; ++i)
+            maxExtent = std::max(maxExtent, sp[i] * dim[i]);
+        this->GetRenderer()->ResetCamera();
+        this->GetRenderer()->GetActiveCamera()->SetParallelScale(maxExtent * 0.55);
+    }
+
     // 诊断 + 显式设置十字线颜色/线宽
     vtkResliceCursorWidget* w = this->GetResliceCursorWidget();
     std::cerr << "[十字线诊断] enabled=" << w->GetEnabled()
               << " renderer=" << (this->GetRenderer() ? "有" : "无")
-              << " rep=" << (w->GetRepresentation() ? w->GetRepresentation()->GetClassName() : "null");
+              << " rep=" << (w->GetRepresentation() ? w->GetRepresentation()->GetClassName() : "null")
+              << " repVis=" << (w->GetRepresentation() ? w->GetRepresentation()->GetVisibility() : -1);
     if (vtkResliceCursor* rc = this->GetResliceCursor()) {
         int npts[3] = { -1, -1, -1 };
         for (int i = 0; i < 3; ++i) {

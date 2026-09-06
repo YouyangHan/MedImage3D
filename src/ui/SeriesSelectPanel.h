@@ -11,6 +11,8 @@
 // 数据源：SeriesListModel 为唯一数据源(见 setSeries)。
 // ============================================================================
 
+#include "dicom/SeriesInfo.h"
+
 #include <QList>
 #include <QWidget>
 
@@ -19,7 +21,6 @@ class QListView;
 class QPushButton;
 class QScrollBar;
 class SeriesListModel;
-struct SeriesInfo;
 
 class SeriesSelectPanel : public QWidget
 {
@@ -36,8 +37,8 @@ public:
     int selectedRow() const;
 
 signals:
-    // 用户点击「三维重建」，携带选中的序列下标(步骤 3 起加载体数据)
-    void reconstructRequested(int seriesRow);
+    // 用户点击「三维重建」，携带选中的序列数据(步骤 3 起加载体数据)
+    void reconstructRequested(const SeriesInfo& series);
 
 protected:
     // 预览区鼠标拖动 + 滚轮切层

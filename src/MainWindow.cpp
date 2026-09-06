@@ -2,6 +2,8 @@
 
 #include "common/Logging.h"
 #include "common/Settings.h"
+#include "core/DataRepository.h"
+#include "dicom/LoadThread.h"
 #include "dicom/ScanThread.h"
 #include "dicom/SeriesInfo.h"
 #include "resources/paths.h"
@@ -25,7 +27,7 @@
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    // 中央区域：序列选择面板(替代圆锥与环境验证渲染)
+    // 中央区域：序列选择面板(扫描完成后展示, 加载完成后由四视图替换)
     m_seriesPanel = new SeriesSelectPanel(this);
     setCentralWidget(m_seriesPanel);
     connect(m_seriesPanel, &SeriesSelectPanel::reconstructRequested,
@@ -112,8 +114,58 @@ void MainWindow::onScanFinished(const QList<SeriesInfo>& series)
     m_seriesPanel->setSeries(series);
 }
 
-void MainWindow::onReconstructRequested(int seriesRow)
+void MainWindow::onReconstructRequested(const SeriesInfo& series)
 {
-    LOG_INFO(lcDicom, "请求三维重建: 序列 " << seriesRow);
-    // 步骤 3 起：在此对选中序列进行体数据加载 + 四视图重建
+    LOG_INFO(lcDicom, "请求三维重建: " << series.seriesDescription
+             << " (" << series.imageCount() << " 张)");
+    startLoad(series);
+}
+
+void MainWindow::startLoad(const SeriesInfo& series)
+{
+    // 加载进度弹窗：百分比进度(0..100)
+    if (!m_loadProgress) {
+        m_loadProgress = new QProgressDialog(this);
+        m_loadProgress->setWindowTitle(AppStrings::kActionReconstruct);
+        m_loadProgress->setLabelText(AppStrings::kProgressLoad);
+        m_loadProgress->setCancelButton(nullptr);
+        m_loadProgress->setAutoClose(false);
+        m_loadProgress->setMinimumDuration(0);
+        m_loadProgress->setRange(0, 100);
+    }
+    m_loadProgress->setValue(0);
+    m_loadProgress->show();
+
+    // 后台加载线程；由 Qt 父对象自动回收
+    auto* thread = new LoadThread(series.filePaths, this);
+    connect(thread, &LoadThread::progressChanged, this,
+            [this](double p) {
+                if (m_loadProgress) m_loadProgress->setValue(static_cast<int>(p * 100));
+            });
+    connect(thread, &LoadThread::loadFinished, this, &MainWindow::onLoadFinished);
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
+}
+
+void MainWindow::onLoadFinished(const Volume& volume)
+{
+    if (m_loadProgress)
+        m_loadProgress->hide();
+
+    if (!volume.isValid()) {
+        QMessageBox::warning(this, AppStrings::kAppDisplayName,
+                             AppStrings::kErrLoadFailed);
+        return;
+    }
+
+    // 存入数据仓库，供后续四视图使用
+    DataRepository::instance().setCurrentVolume(volume);
+
+    const QString info = QStringLiteral("体数据 %1x%2x%3, 间距 %4/%5/%6 mm")
+        .arg(volume.dimensions[0]).arg(volume.dimensions[1]).arg(volume.dimensions[2])
+        .arg(volume.spacing[0], 0, 'f', 2)
+        .arg(volume.spacing[1], 0, 'f', 2)
+        .arg(volume.spacing[2], 0, 'f', 2);
+    statusBar()->showMessage(info);
+    LOG_INFO(lcRender, "体数据已就绪: " << info);
 }

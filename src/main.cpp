@@ -1,9 +1,11 @@
 #include "MainWindow.h"
 #include "common/Logging.h"
 #include "common/Settings.h"
+#include "core/Volume.h"
 #include "dicom/DicomScanner.h"
 #include "dicom/SeriesInfo.h"
 #include "dicom/TestDataGenerator.h"
+#include "dicom/VolumeLoader.h"
 #include "resources/paths.h"
 #include "resources/strings.h"
 
@@ -41,6 +43,42 @@ int runScanSmokeTest(const QString& dirPath)
     return series.isEmpty() ? 3 : 0;   // 无结果视为失败
 }
 
+// 命令行自检：生成数据 -> 扫描 -> 加载第一个序列的体数据(ITK GDCM)，
+// 打印尺寸/间距/中心像素值，验证 DICOM 像素读取链路。
+int runLoadSmokeTest(const QString& dirPath)
+{
+    QString error;
+    if (!TestDataGenerator::generate(dirPath, &error)) {
+        QTextStream(stdout) << "生成测试数据失败: " << error << '\n';
+        return 2;
+    }
+
+    DicomScanner scanner;
+    const QList<SeriesInfo> series = scanner.scanDirectory(dirPath);
+    if (series.isEmpty()) {
+        QTextStream(stdout) << "扫描无结果\n";
+        return 3;
+    }
+
+    const SeriesInfo& s = series.first();
+    Volume v = VolumeLoader::load(s.filePaths);
+    if (!v.isValid()) {
+        QTextStream(stdout) << "体数据加载失败\n";
+        return 4;
+    }
+
+    QTextStream out(stdout);
+    out << "加载成功: " << s.seriesDescription
+        << "  尺寸=" << v.dimensions[0] << 'x' << v.dimensions[1] << 'x' << v.dimensions[2]
+        << "  间距=" << v.spacing[0] << '/' << v.spacing[1] << '/' << v.spacing[2] << '\n';
+
+    // 打印中心体素值(应约为 HU=0，测试数据背景 rescale 后为 0)
+    const int x = v.dimensions[0] / 2, y = v.dimensions[1] / 2, z = v.dimensions[2] / 2;
+    const short* px = static_cast<const short*>(v.imageData->GetScalarPointer(x, y, z));
+    out << "中心体素值=" << (px ? *px : 0) << '\n';
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -52,9 +90,10 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(AppPaths::kAppName);
     QApplication::setOrganizationName(AppPaths::kOrgName);
 
-    // 跨线程信号(ScanThread -> 主窗口)经队列连接传递 QList<SeriesInfo>，
-    // 需提前注册元类型，Qt 才能在两个线程间拷贝该参数
+    // 跨线程信号经队列连接传递自定义类型，需提前注册元类型，Qt 才能拷贝参数：
+    //   ScanThread -> QList<SeriesInfo>；LoadThread -> Volume
     qRegisterMetaType<QList<SeriesInfo>>("QList<SeriesInfo>");
+    qRegisterMetaType<Volume>("Volume");
 
     // ---- 命令行自检开关(无界面) ----
     //   --gen-test-data <目录>   生成测试数据
@@ -70,6 +109,8 @@ int main(int argc, char* argv[])
         }
         if (args[i] == QStringLiteral("--scan-smoke-test") && i + 1 < args.size())
             return runScanSmokeTest(args[i + 1]);
+        if (args[i] == QStringLiteral("--load-smoke-test") && i + 1 < args.size())
+            return runLoadSmokeTest(args[i + 1]);
     }
 
     LOG_INFO(lcApp, "应用启动: " << AppStrings::kAppDisplayName);

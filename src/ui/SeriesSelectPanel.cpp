@@ -149,8 +149,8 @@ void SeriesSelectPanel::onSliceChanged(int slice)
 void SeriesSelectPanel::onReconstructClicked()
 {
     const int row = selectedRow();
-    if (row >= 0)
-        emit reconstructRequested(row);
+    if (row >= 0 && row < m_model->rowCount())
+        emit reconstructRequested(m_model->at(row));
 }
 
 void SeriesSelectPanel::updatePreview(int slice)

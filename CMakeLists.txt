@@ -56,6 +56,7 @@ find_package(VTK REQUIRED COMPONENTS
 find_package(ITK REQUIRED COMPONENTS
     ITKCommon
     ITKIOImageBase
+    ITKIOGDCM               # GDCMImageIO 读取 DICOM 像素
     ITKImageFunction
     ITKImageGrid
     ITKImageIntensity

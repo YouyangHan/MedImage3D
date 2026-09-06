@@ -33,9 +33,12 @@ VolumeView::VolumeView(QWidget* parent)
     auto style = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
     m_vtkWidget->interactor()->SetInteractorStyle(style);
 
-    // 体绘制管线：智能体绘制器(GPU 光线投射 + CPU 回退)
+    // 体绘制管线：智能体绘制器
     m_mapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
     m_mapper->SetBlendModeToComposite();
+    // 强制 CPU 光线投射：GPU 光线投射在部分集成显卡/大数据上会触发驱动崩溃
+    // (表现为 app.exec() 里无栈崩溃)。CPU 渲染稳定，后续需要 GPU 再切换。
+    m_mapper->SetRequestedRenderModeToRayCast();
 
     m_volume = vtkSmartPointer<vtkVolume>::New();
     m_volume->SetMapper(m_mapper);

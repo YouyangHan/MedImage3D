@@ -9,12 +9,8 @@
 #include "resources/paths.h"
 #include "resources/strings.h"
 #include "ui/SeriesSelectPanel.h"
-#include "view/SliceView.h"
-#include "view/TransferFunctionFactory.h"
-#include "view/VolumeView.h"
+#include "view/ViewManager.h"
 
-#include <vtkImageViewer2.h>
-#include <vtkResliceCursor.h>
 #include <vtkVersion.h>
 
 #include <itkVersion.h>
@@ -24,7 +20,6 @@
 #include <QAction>
 #include <QDir>
 #include <QFileDialog>
-#include <QGridLayout>
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QStackedWidget>
@@ -197,50 +192,13 @@ void MainWindow::showVolumeForTest(const Volume& volume)
 
 void MainWindow::setupMprViews(const Volume& volume)
 {
-    // 共享十字线光标：三个视图的光标中心/轴向全局唯一，十字线自动同步
-    if (!m_cursor)
-        m_cursor = vtkSmartPointer<vtkResliceCursor>::New();
-    m_cursor->SetImage(volume.imageData);
-    m_cursor->SetCenter(volume.imageData->GetCenter());
-
-    if (!m_viewContainer) {
-        // 首次创建：三个方向的切片视图，2x2 网格(右下留待步骤 5 的体绘制)
-        m_viewContainer = new QWidget(this);
-        auto* grid = new QGridLayout(m_viewContainer);
-        grid->setContentsMargins(0, 0, 0, 0);
-
-        // 方向：0=矢状(YZ), 1=冠状(XZ), 2=横断(XY)
-        const int orientations[3] = {
-            vtkImageViewer2::SLICE_ORIENTATION_XY,   // 横断
-            vtkImageViewer2::SLICE_ORIENTATION_YZ,   // 矢状
-            vtkImageViewer2::SLICE_ORIENTATION_XZ,   // 冠状
-        };
-        const int positions[3][2] = { {0, 0}, {0, 1}, {1, 0} };
-
-        for (int i = 0; i < 3; ++i) {
-            auto* sv = new SliceView(m_viewContainer);
-            sv->setVolume(volume.imageData);
-            sv->setOrientation(orientations[i]);
-            sv->setSharedCursor(m_cursor);
-            grid->addWidget(sv, positions[i][0], positions[i][1]);
-            m_sliceViews << sv;
-        }
-
-        // 右下：三维体绘制视图(默认骨窗)
-        m_volumeView = new VolumeView(m_viewContainer);
-        m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
-        grid->addWidget(m_volumeView, 1, 1);
-
-        // 加入页面栈并切换(首次)
-        m_stack->addWidget(m_viewContainer);
-    } else {
-        // 已创建：重新加载新体数据到各视图
-        for (SliceView* sv : m_sliceViews) {
-            sv->setVolume(volume.imageData);
-            sv->setSharedCursor(m_cursor);
-        }
-        m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
+    // 首次创建 ViewManager(四视图编排 + 联动)，加入页面栈
+    if (!m_viewManager) {
+        m_viewManager = new ViewManager(this);
+        m_stack->addWidget(m_viewManager);
     }
 
-    m_stack->setCurrentWidget(m_viewContainer);
+    // 填充体数据并切换到四视图页
+    m_viewManager->setVolume(volume);
+    m_stack->setCurrentWidget(m_viewManager);
 }

@@ -33,6 +33,11 @@ public:
     // 共享十字线光标(三视图联动)；须在 setVolume 之后调用
     void setSharedCursor(vtkResliceCursor* cursor);
 
+    // 从共享光标中心同步本视图切片(世界坐标 -> 切片索引)；联动时由 ViewManager 调用
+    void synchronizeFromCursor();
+    // 本视图切片 -> 共享光标中心(切片索引 -> 世界坐标)，并触发 ResliceAxesChangedEvent
+    void synchronizeToCursor();
+
 protected:
     ResliceViewer();
     ~ResliceViewer() override;

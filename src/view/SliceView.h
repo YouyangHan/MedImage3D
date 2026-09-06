@@ -30,6 +30,10 @@ public:
     void setOrientation(int orientation);
     void setSharedCursor(vtkResliceCursor* cursor);
 
+    // 联动：从共享光标中心同步切片 / 切片同步到光标中心
+    void synchronizeFromCursor() { m_viewer->synchronizeFromCursor(); }
+    void synchronizeToCursor()   { m_viewer->synchronizeToCursor(); }
+
     // 底层 viewer，供 ViewManager 联动控制
     ResliceViewer* viewer() { return m_viewer; }
 

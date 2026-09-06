@@ -7,6 +7,8 @@
 #include <vtkResliceCursorRepresentation.h>
 #include <vtkResliceCursorWidget.h>
 
+#include <cmath>
+
 vtkStandardNewMacro(ResliceViewer);
 
 ResliceViewer::ResliceViewer()
@@ -52,4 +54,40 @@ void ResliceViewer::setSharedCursor(vtkResliceCursor* cursor)
 {
     if (cursor)
         this->SetResliceCursor(cursor);
+}
+
+void ResliceViewer::synchronizeFromCursor()
+{
+    vtkResliceCursor* rc = this->GetResliceCursor();
+    vtkImageData* img = this->GetInput();
+    if (!rc || !img)
+        return;
+
+    // 世界坐标 -> 切片索引：world[axis] = origin[axis] + slice * spacing[axis]
+    double c[3];
+    rc->GetCenter(c);
+    const double* origin = img->GetOrigin();
+    const double* spacing = img->GetSpacing();
+    const int axis = this->GetSliceOrientation();   // 0=X, 1=Y, 2=Z
+    const int z = static_cast<int>(std::round((c[axis] - origin[axis]) / spacing[axis]));
+    this->SetSlice(z);
+}
+
+void ResliceViewer::synchronizeToCursor()
+{
+    vtkResliceCursor* rc = this->GetResliceCursor();
+    vtkImageData* img = this->GetInput();
+    if (!rc || !img)
+        return;
+
+    // 切片索引 -> 世界坐标，更新光标中心，并广播给其他视图
+    double c[3];
+    rc->GetCenter(c);
+    const double* origin = img->GetOrigin();
+    const double* spacing = img->GetSpacing();
+    const int axis = this->GetSliceOrientation();
+    c[axis] = origin[axis] + this->GetSlice() * spacing[axis];
+    rc->SetCenter(c);
+    this->GetResliceCursorWidget()->InvokeEvent(
+        vtkResliceCursorWidget::ResliceAxesChangedEvent);
 }

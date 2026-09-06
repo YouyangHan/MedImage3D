@@ -127,17 +127,19 @@ void ViewManager::setPreset(TransferPreset preset)
 
 void ViewManager::onCursorChanged()
 {
-    // OBLIQUE(斜切)模式下三视图共享同一光标，光标中心/平面变化已自动同步几何，
-    // 这里只需刷新各视图渲染即可。
-    for (SliceView* sv : m_sliceViews)
-        sv->viewer()->Render();
+    // 十字线拖动：光标中心/平面变化 -> 三视图重建十字线并刷新渲染
+    for (SliceView* sv : m_sliceViews) {
+        sv->buildRepresentation();
+        sv->render();
+    }
 }
 
 void ViewManager::onSliceChanged(SliceView* source)
 {
     Q_UNUSED(source);
-    // 滚轮翻层在 OBLIQUE 模式下已移动共享光标中心，其余视图随之改变，
-    // 只需刷新三视图渲染。
-    for (SliceView* sv : m_sliceViews)
-        sv->viewer()->Render();
+    // 滚轮翻层：OBLIQUE 模式已移动共享光标中心，三视图重建十字线并刷新
+    for (SliceView* sv : m_sliceViews) {
+        sv->buildRepresentation();
+        sv->render();
+    }
 }

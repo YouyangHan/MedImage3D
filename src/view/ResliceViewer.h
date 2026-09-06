@@ -38,6 +38,9 @@ public:
     // 本视图切片 -> 共享光标中心(切片索引 -> 世界坐标)，并触发 ResliceAxesChangedEvent
     void synchronizeToCursor();
 
+    // 重建十字线 representation(联动时需按新光标重建参考线)
+    void buildRepresentation();
+
 protected:
     ResliceViewer();
     ~ResliceViewer() override;

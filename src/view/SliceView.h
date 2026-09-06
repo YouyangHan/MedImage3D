@@ -37,6 +37,9 @@ public:
     // 立即渲染(OBLIQUE 模式切片/十字线依赖 Render)
     void render() { m_viewer->Render(); }
 
+    // 重建十字线 representation
+    void buildRepresentation() { m_viewer->buildRepresentation(); }
+
     // 底层 viewer，供 ViewManager 联动控制
     ResliceViewer* viewer() { return m_viewer; }
 

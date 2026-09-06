@@ -16,6 +16,14 @@ ResliceViewer::ResliceViewer()
 {
     // 滚轮翻层
     this->SetSliceScrollOnMouseWheel(1);
+
+    // 限制 reslice 平面在体数据内(参考 3d-xmake)，否则十字线可能超出体数据不显示
+    if (vtkResliceCursorRepresentation* rep =
+            vtkResliceCursorRepresentation::SafeDownCast(
+                this->GetResliceCursorWidget()->GetRepresentation())) {
+        rep->SetRestrictPlaneToVolume(1);
+    }
+
     // 注：斜切模式(OBLIQUE, 显示十字线并联动)需在 interactor 设置后切换，
     // 由 SliceView 构造在 SetupInteractor 之后调用 SetResliceModeToOblique()。
 }
@@ -65,9 +73,12 @@ void ResliceViewer::setSharedCursor(vtkResliceCursor* cursor)
     if (!cursor)
         return;
     this->SetResliceCursor(cursor);
+    buildRepresentation();
+}
 
-    // SetResliceCursor 只替换光标引用，不重建十字线 polydata；
-    // 显式重建 representation，让红蓝绿参考线按新光标显示。
+void ResliceViewer::buildRepresentation()
+{
+    // 重建十字线 representation，让红蓝绿参考线按当前光标显示。
     if (vtkResliceCursorRepresentation* rep =
             vtkResliceCursorRepresentation::SafeDownCast(
                 this->GetResliceCursorWidget()->GetRepresentation())) {

@@ -1,0 +1,27 @@
+# ============================================================
+# MedImage3D .gitignore
+# ============================================================
+
+# ---- 构建输出 ----
+build/
+out/
+*.user
+*.suo
+
+# ---- 第三方库（体量大，由 ThirdParty/scripts 本地构建，不入库）----
+ThirdParty/VTK/
+ThirdParty/ITK/
+ThirdParty/DCMTK/
+ThirdParty/_build/
+ThirdParty/_src/
+ThirdParty/_tools/
+# 保留：ThirdParty/scripts/（构建脚本需入库）
+
+# ---- IDE ----
+.vs/
+.vscode/
+.idea/
+
+# ---- 系统文件 ----
+Thumbs.db
+Desktop.ini

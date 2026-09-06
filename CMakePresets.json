@@ -1,0 +1,42 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "msvc2022-release",
+            "displayName": "VS2022 Release",
+            "generator": "Visual Studio 17 2022",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "Qt6_ROOT": "$env{QTDIR}",
+                "CMAKE_CONFIGURATION_TYPES": "Release;RelWithDebInfo"
+            }
+        },
+        {
+            "name": "ninja-relwithdebinfo",
+            "displayName": "Ninja RelWithDebInfo",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/ninja",
+            "cacheVariables": {
+                "Qt6_ROOT": "$env{QTDIR}",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "msvc2022-release",
+            "configurePreset": "msvc2022-release",
+            "configuration": "Release"
+        },
+        {
+            "name": "ninja-relwithdebinfo",
+            "configurePreset": "ninja-relwithdebinfo"
+        }
+    ]
+}

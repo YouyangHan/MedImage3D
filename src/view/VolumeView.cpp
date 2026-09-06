@@ -62,3 +62,8 @@ void VolumeView::setPreset(TransferPreset preset)
     m_volume->SetProperty(TransferFunctionFactory::createVolumeProperty(preset));
     m_vtkWidget->update();
 }
+
+void VolumeView::render()
+{
+    m_vtkWidget->renderWindow()->Render();
+}

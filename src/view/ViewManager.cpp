@@ -12,6 +12,7 @@
 #include <vtkResliceImageViewer.h>
 
 #include <QGridLayout>
+#include <QTimer>
 
 namespace {
 
@@ -109,6 +110,14 @@ void ViewManager::setVolume(const Volume& volume)
         sv->setSharedCursor(m_cursor);
     }
     m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
+
+    // 初始渲染：OBLIQUE 模式切片/十字线依赖 Render，且需在视图 show 之后
+    // (setCurrentWidget 触发) 渲染，故延迟到事件循环下一轮。
+    QTimer::singleShot(0, this, [this]() {
+        for (SliceView* sv : m_sliceViews)
+            sv->render();
+        m_volumeView->render();
+    });
 }
 
 void ViewManager::setPreset(TransferPreset preset)

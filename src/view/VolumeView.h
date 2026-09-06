@@ -38,6 +38,9 @@ public:
     // 底层渲染器，供 ViewManager 联动控制
     vtkRenderer* renderer() { return m_renderer; }
 
+    // 立即渲染(定义在 .cpp，需 QVTKOpenGLNativeWidget 完整类型)
+    void render();
+
 private:
     QVTKOpenGLNativeWidget* m_vtkWidget = nullptr;
     vtkSmartPointer<vtkGenericOpenGLRenderWindow> m_renderWindow;

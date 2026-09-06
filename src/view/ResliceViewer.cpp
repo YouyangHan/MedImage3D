@@ -4,6 +4,7 @@
 #include <vtkImageReslice.h>
 #include <vtkObjectFactory.h>
 #include <vtkResliceCursor.h>
+#include <vtkResliceCursorPolyDataAlgorithm.h>
 #include <vtkResliceCursorRepresentation.h>
 #include <vtkResliceCursorWidget.h>
 
@@ -43,6 +44,15 @@ void ResliceViewer::setSliceOrientation(int orientation)
     }
 
     this->SetSliceOrientation(orientation);
+
+    // 关键：vtkResliceImageViewer::SetSliceOrientation 只改相机，不更新
+    // cursor algorithm 的平面法向(构造时设为默认 XY 后不再变)。三个视图共享
+    // 光标，若不分别设置平面法向，会显示同一张切片。这里手动同步。
+    if (vtkResliceCursorRepresentation* rep =
+            vtkResliceCursorRepresentation::SafeDownCast(
+                this->GetResliceCursorWidget()->GetRepresentation())) {
+        rep->GetCursorAlgorithm()->SetReslicePlaneNormal(orientation);
+    }
 
     // 切片移到中间
     const int* range = this->GetSliceRange();

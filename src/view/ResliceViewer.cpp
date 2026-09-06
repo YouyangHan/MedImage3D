@@ -1,5 +1,6 @@
 #include "ResliceViewer.h"
 
+#include <vtkCamera.h>
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
 #include <vtkObjectFactory.h>
@@ -64,6 +65,11 @@ void ResliceViewer::setVolume(vtkImageData* image)
     } else {
         std::cerr << " cursor=null";
     }
+    if (auto* rep = vtkResliceCursorRepresentation::SafeDownCast(w->GetRepresentation())) {
+        auto* algo = rep->GetCursorAlgorithm();
+        std::cerr << " planeNormal=" << algo->GetReslicePlaneNormal()
+                  << " axis1=" << algo->GetPlaneAxis1() << " axis2=" << algo->GetPlaneAxis2();
+    }
     if (auto* lineRep = vtkResliceCursorLineRepresentation::SafeDownCast(w->GetRepresentation())) {
         auto* actor = lineRep->GetResliceCursorActor();
         const double colors[3][3] = { {1,0,0}, {0,1,0}, {0,0,1} };
@@ -107,6 +113,18 @@ void ResliceViewer::setSliceOrientation(int orientation)
     const int* range = this->GetSliceRange();
     if (range)
         this->SetSlice(static_cast<int>((range[0] + range[1]) * 0.5));
+
+    // 调整相机平行缩放以适配体数据(参考 3d-xmake，否则十字线/切片可能超出视口)
+    if (this->GetRenderer() && this->GetInput()) {
+        double sp[3];
+        int dim[3];
+        this->GetInput()->GetSpacing(sp);
+        this->GetInput()->GetDimensions(dim);
+        const int y = (orientation < 2) ? 2 : 1;
+        const double scale = sp[y] * dim[y] / 2 * 1.1;
+        this->GetRenderer()->ResetCamera();
+        this->GetRenderer()->GetActiveCamera()->SetParallelScale(scale);
+    }
 }
 
 void ResliceViewer::setSharedCursor(vtkResliceCursor* cursor)

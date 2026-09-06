@@ -7,12 +7,17 @@
 #include <vtkCommand.h>
 #include <vtkImageData.h>
 #include <vtkImageViewer2.h>
+#include <vtkPolyData.h>
 #include <vtkResliceCursor.h>
+#include <vtkResliceCursorPolyDataAlgorithm.h>
+#include <vtkResliceCursorRepresentation.h>
 #include <vtkResliceCursorWidget.h>
 #include <vtkResliceImageViewer.h>
 
 #include <QGridLayout>
 #include <QTimer>
+
+#include <iostream>
 
 namespace {
 
@@ -117,6 +122,20 @@ void ViewManager::setVolume(const Volume& volume)
         for (SliceView* sv : m_sliceViews)
             sv->render();
         m_volumeView->render();
+
+        // 诊断：render 后检查十字线 actor mapper 输入
+        if (!m_sliceViews.isEmpty()) {
+            auto* w = m_sliceViews[0]->viewer()->GetResliceCursorWidget();
+            if (auto* rep = vtkResliceCursorRepresentation::SafeDownCast(w->GetRepresentation())) {
+                auto* algo = rep->GetCursorAlgorithm();
+                for (int i = 0; i < 2; ++i) {
+                    vtkPolyData* out = vtkPolyData::SafeDownCast(algo->GetOutput(i));
+                    std::cerr << "[render后] algoOut" << i << " pts="
+                              << (out ? out->GetNumberOfPoints() : -1)
+                              << " cells=" << (out ? out->GetNumberOfCells() : -1) << "\n";
+                }
+            }
+        }
     });
 }
 

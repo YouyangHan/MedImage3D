@@ -14,7 +14,7 @@
             "binaryDir": "${sourceDir}/build/release",
             "cacheVariables": {
                 "Qt6_ROOT": "$env{QTDIR}",
-                "CMAKE_CONFIGURATION_TYPES": "Release;RelWithDebInfo"
+                "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo"
             }
         },
         {

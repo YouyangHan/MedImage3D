@@ -8,6 +8,7 @@
 #include "dicom/VolumeLoader.h"
 #include "resources/paths.h"
 #include "resources/strings.h"
+#include "view/ResliceViewer.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -16,6 +17,10 @@
 
 #include <QFileInfo>
 #include <QTextStream>
+
+#include <vtkGenericOpenGLRenderWindow.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkResliceCursor.h>
 
 namespace {
 
@@ -79,6 +84,53 @@ int runLoadSmokeTest(const QString& dirPath)
     return 0;
 }
 
+// 命令行自检：加载体数据后用 offscreen 渲染三个 MPR 视图(共享光标)，
+// 验证"三视图搭建 + 渲染"不崩溃。
+int runRenderSmokeTest(const QString& dirPath)
+{
+    QString error;
+    if (!TestDataGenerator::generate(dirPath, &error)) {
+        QTextStream(stdout) << "生成测试数据失败: " << error << '\n';
+        return 2;
+    }
+    DicomScanner scanner;
+    const QList<SeriesInfo> series = scanner.scanDirectory(dirPath);
+    if (series.isEmpty()) { QTextStream(stdout) << "扫描无结果\n"; return 3; }
+
+    Volume v = VolumeLoader::load(series.first().filePaths);
+    if (!v.isValid()) { QTextStream(stdout) << "体数据加载失败\n"; return 4; }
+
+    // 共享光标
+    auto cursor = vtkSmartPointer<vtkResliceCursor>::New();
+    cursor->SetImage(v.imageData);
+    cursor->SetCenter(v.imageData->GetCenter());
+
+    const int orientations[3] = {
+        vtkImageViewer2::SLICE_ORIENTATION_XY,
+        vtkImageViewer2::SLICE_ORIENTATION_YZ,
+        vtkImageViewer2::SLICE_ORIENTATION_XZ,
+    };
+
+    QTextStream out(stdout);
+    for (int i = 0; i < 3; ++i) {
+        auto viewer = vtkSmartPointer<ResliceViewer>::New();
+        auto rw = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
+        rw->SetOffScreenRendering(1);
+        viewer->SetRenderWindow(rw);
+        auto inter = vtkSmartPointer<vtkRenderWindowInteractor>::New();
+        inter->SetRenderWindow(rw);
+        viewer->SetupInteractor(inter);
+
+        viewer->setVolume(v.imageData);
+        viewer->setSliceOrientation(orientations[i]);
+        viewer->setSharedCursor(cursor);
+        rw->Render();
+        out << "视图 " << i << " 渲染成功\n";
+    }
+    out << "三视图渲染自检通过\n";
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -111,6 +163,8 @@ int main(int argc, char* argv[])
             return runScanSmokeTest(args[i + 1]);
         if (args[i] == QStringLiteral("--load-smoke-test") && i + 1 < args.size())
             return runLoadSmokeTest(args[i + 1]);
+        if (args[i] == QStringLiteral("--render-smoke-test") && i + 1 < args.size())
+            return runRenderSmokeTest(args[i + 1]);
     }
 
     LOG_INFO(lcApp, "应用启动: " << AppStrings::kAppDisplayName);

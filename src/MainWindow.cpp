@@ -9,7 +9,10 @@
 #include "resources/paths.h"
 #include "resources/strings.h"
 #include "ui/SeriesSelectPanel.h"
+#include "view/SliceView.h"
 
+#include <vtkImageViewer2.h>
+#include <vtkResliceCursor.h>
 #include <vtkVersion.h>
 
 #include <itkVersion.h>
@@ -19,6 +22,7 @@
 #include <QAction>
 #include <QDir>
 #include <QFileDialog>
+#include <QGridLayout>
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QStatusBar>
@@ -112,6 +116,7 @@ void MainWindow::onScanFinished(const QList<SeriesInfo>& series)
 
     LOG_INFO(lcDicom, "扫描得到 " << series.size() << " 个序列");
     m_seriesPanel->setSeries(series);
+    setCentralWidget(m_seriesPanel);   // 重新扫描时切回序列面板
 }
 
 void MainWindow::onReconstructRequested(const SeriesInfo& series)
@@ -168,4 +173,48 @@ void MainWindow::onLoadFinished(const Volume& volume)
         .arg(volume.spacing[2], 0, 'f', 2);
     statusBar()->showMessage(info);
     LOG_INFO(lcRender, "体数据已就绪: " << info);
+
+    // 展示 MPR 三视图(步骤 6 由 ViewManager 接管)
+    setupMprViews(volume);
+}
+
+void MainWindow::setupMprViews(const Volume& volume)
+{
+    // 共享十字线光标：三个视图的光标中心/轴向全局唯一，十字线自动同步
+    if (!m_cursor)
+        m_cursor = vtkSmartPointer<vtkResliceCursor>::New();
+    m_cursor->SetImage(volume.imageData);
+    m_cursor->SetCenter(volume.imageData->GetCenter());
+
+    if (!m_viewContainer) {
+        // 首次创建：三个方向的切片视图，2x2 网格(右下留待步骤 5 的体绘制)
+        m_viewContainer = new QWidget(this);
+        auto* grid = new QGridLayout(m_viewContainer);
+        grid->setContentsMargins(0, 0, 0, 0);
+
+        // 方向：0=矢状(YZ), 1=冠状(XZ), 2=横断(XY)
+        const int orientations[3] = {
+            vtkImageViewer2::SLICE_ORIENTATION_XY,   // 横断
+            vtkImageViewer2::SLICE_ORIENTATION_YZ,   // 矢状
+            vtkImageViewer2::SLICE_ORIENTATION_XZ,   // 冠状
+        };
+        const int positions[3][2] = { {0, 0}, {0, 1}, {1, 0} };
+
+        for (int i = 0; i < 3; ++i) {
+            auto* sv = new SliceView(m_viewContainer);
+            sv->setVolume(volume.imageData);
+            sv->setOrientation(orientations[i]);
+            sv->setSharedCursor(m_cursor);
+            grid->addWidget(sv, positions[i][0], positions[i][1]);
+            m_sliceViews << sv;
+        }
+    } else {
+        // 已创建：重新加载新体数据到各视图
+        for (SliceView* sv : m_sliceViews) {
+            sv->setVolume(volume.imageData);
+            sv->setSharedCursor(m_cursor);
+        }
+    }
+
+    setCentralWidget(m_viewContainer);
 }

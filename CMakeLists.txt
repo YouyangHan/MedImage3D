@@ -14,6 +14,18 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "构建类型" FORCE)
 endif()
 
+# ============================================================================
+# 运行时库一致性 (CRT)
+#  第三方库(VTK/ITK/DCMTK/Qt)均编译为 Release 动态库(/MD)。
+#  Debug 配置(/MDd + _ITERATOR_DEBUG_LEVEL=2)与之链接会产生 CRT 不匹配
+#  (RuntimeLibrary / _ITERATOR_DEBUG_LEVEL 冲突, MSVCRT 默认库冲突)。
+#  因此多配置生成器(Visual Studio)下仅保留 Release 与 RelWithDebInfo(带符号, /MD)。
+# ============================================================================
+if(CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_CONFIGURATION_TYPES "RelWithDebInfo;Release"
+        CACHE STRING "构建配置(仅 Release/RelWithDebInfo, 第三方库为 /MD)" FORCE)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Qt6 安装前缀: 优先环境变量 QTDIR, 其次 -DQt6_ROOT=<路径>; 不硬编码绝对路径

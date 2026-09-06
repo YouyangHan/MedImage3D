@@ -7,20 +7,12 @@
 #include <vtkCommand.h>
 #include <vtkImageData.h>
 #include <vtkImageViewer2.h>
-#include <vtkPolyData.h>
-#include <vtkPolyDataMapper.h>
 #include <vtkResliceCursor.h>
-#include <vtkResliceCursorActor.h>
-#include <vtkResliceCursorLineRepresentation.h>
-#include <vtkResliceCursorPolyDataAlgorithm.h>
-#include <vtkResliceCursorRepresentation.h>
 #include <vtkResliceCursorWidget.h>
 #include <vtkResliceImageViewer.h>
 
 #include <QGridLayout>
 #include <QTimer>
-
-#include <iostream>
 
 namespace {
 
@@ -125,20 +117,6 @@ void ViewManager::setVolume(const Volume& volume)
         for (SliceView* sv : m_sliceViews)
             sv->render();
         m_volumeView->render();
-
-        // 诊断：render 后检查十字线 actor mapper 输入连接
-        if (!m_sliceViews.isEmpty()) {
-            auto* w = m_sliceViews[0]->viewer()->GetResliceCursorWidget();
-            if (auto* lineRep = vtkResliceCursorLineRepresentation::SafeDownCast(w->GetRepresentation())) {
-                auto* actor = lineRep->GetResliceCursorActor();
-                for (int i = 0; i < 3; ++i) {
-                    auto* mapper = vtkPolyDataMapper::SafeDownCast(actor->GetCenterlineActor(i)->GetMapper());
-                    std::cerr << "[render后] line" << i << " conn="
-                              << (mapper ? mapper->GetNumberOfInputConnections(0) : -1)
-                              << " vis=" << actor->GetCenterlineActor(i)->GetVisibility() << "\n";
-                }
-            }
-        }
     });
 }
 

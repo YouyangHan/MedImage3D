@@ -4,7 +4,6 @@
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
 #include <vtkObjectFactory.h>
-#include <vtkPolyData.h>
 #include <vtkProperty.h>
 #include <vtkRenderer.h>
 #include <vtkResliceCursor.h>
@@ -16,7 +15,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 
 vtkStandardNewMacro(ResliceViewer);
 
@@ -64,28 +62,9 @@ void ResliceViewer::setVolume(vtkImageData* image)
         this->GetRenderer()->GetActiveCamera()->SetParallelScale(maxExtent * 0.55);
     }
 
-    // 诊断 + 显式设置十字线颜色/线宽
-    vtkResliceCursorWidget* w = this->GetResliceCursorWidget();
-    std::cerr << "[十字线诊断] enabled=" << w->GetEnabled()
-              << " renderer=" << (this->GetRenderer() ? "有" : "无")
-              << " rep=" << (w->GetRepresentation() ? w->GetRepresentation()->GetClassName() : "null")
-              << " repVis=" << (w->GetRepresentation() ? w->GetRepresentation()->GetVisibility() : -1);
-    if (vtkResliceCursor* rc = this->GetResliceCursor()) {
-        int npts[3] = { -1, -1, -1 };
-        for (int i = 0; i < 3; ++i) {
-            if (vtkPolyData* pd = rc->GetCenterlineAxisPolyData(i))
-                npts[i] = pd->GetNumberOfPoints();
-        }
-        std::cerr << " centerlinePts=" << npts[0] << ',' << npts[1] << ',' << npts[2];
-    } else {
-        std::cerr << " cursor=null";
-    }
-    if (auto* rep = vtkResliceCursorRepresentation::SafeDownCast(w->GetRepresentation())) {
-        auto* algo = rep->GetCursorAlgorithm();
-        std::cerr << " planeNormal=" << algo->GetReslicePlaneNormal()
-                  << " axis1=" << algo->GetPlaneAxis1() << " axis2=" << algo->GetPlaneAxis2();
-    }
-    if (auto* lineRep = vtkResliceCursorLineRepresentation::SafeDownCast(w->GetRepresentation())) {
+    // 显式设置十字线颜色/线宽/线框(参考 QVTKOpenGLNativeWidget 十字线兼容性方案)
+    if (auto* lineRep = vtkResliceCursorLineRepresentation::SafeDownCast(
+            this->GetResliceCursorWidget()->GetRepresentation())) {
         auto* actor = lineRep->GetResliceCursorActor();
         const double colors[3][3] = { {1,0,0}, {0,1,0}, {0,0,1} };
         for (int i = 0; i < 3; ++i) {
@@ -96,14 +75,8 @@ void ResliceViewer::setVolume(vtkImageData* image)
             p->SetLighting(0);                    // 线无需光照
             p->SetLineWidth(3);                   // 加粗
             p->SetRepresentationToWireframe();    // 线框表示，避免被图像遮挡
-            std::cerr << " vis" << i << "=" << actor->GetCenterlineActor(i)->GetVisibility();
         }
     }
-    if (this->GetRenderer()) {
-        std::cerr << " actors=" << this->GetRenderer()->GetActors()->GetNumberOfItems()
-                  << " viewProps=" << this->GetRenderer()->GetViewProps()->GetNumberOfItems();
-    }
-    std::cerr << std::endl;
 }
 
 void ResliceViewer::setSliceOrientation(int orientation)

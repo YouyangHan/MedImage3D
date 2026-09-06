@@ -17,14 +17,13 @@ endif()
 # ============================================================================
 # 运行时库一致性 (CRT)
 #  第三方库(VTK/ITK/DCMTK/Qt)均编译为 Release 动态库(/MD)。
-#  Debug 配置(/MDd + _ITERATOR_DEBUG_LEVEL=2)与之链接会产生 CRT 不匹配
-#  (RuntimeLibrary / _ITERATOR_DEBUG_LEVEL 冲突, MSVCRT 默认库冲突)。
-#  因此多配置生成器(Visual Studio)下仅保留 Release 与 RelWithDebInfo(带符号, /MD)。
+#  为让 Debug 配置也能链接这些 Release 库而不 CRT 冲突：
+#   1. 把 Debug / RelWithDebInfo 配置映射到三方库的 Release imported target；
+#   2. (见下方 find_package 之后) 主程序所有配置统一用 /MD。
+#  这样 Debug 配置仍保留 /Od /RTC1 /Zi 调试能力，仅运行时库为 Release 版(/MD)。
 # ============================================================================
-if(CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_CONFIGURATION_TYPES "RelWithDebInfo;Release"
-        CACHE STRING "构建配置(仅 Release/RelWithDebInfo, 第三方库为 /MD)" FORCE)
-endif()
+set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG "Release")
+set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO "Release")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -82,6 +81,10 @@ find_package(DCMTK REQUIRED COMPONENTS
     dcmimgle
     dcmimage
 )
+
+# 覆盖 ITK UseITK.cmake 设置的 Debug -> /MDd，主程序所有配置(含 Debug)统一 /MD，
+# 与第三方库 Release(/MD) 的 CRT 一致(避免 _ITERATOR_DEBUG_LEVEL/RuntimeLibrary 冲突)。
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
 # ============================================================================
 # 主程序

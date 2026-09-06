@@ -10,6 +10,8 @@
 #include "resources/strings.h"
 #include "ui/SeriesSelectPanel.h"
 #include "view/SliceView.h"
+#include "view/TransferFunctionFactory.h"
+#include "view/VolumeView.h"
 
 #include <vtkImageViewer2.h>
 #include <vtkResliceCursor.h>
@@ -208,12 +210,18 @@ void MainWindow::setupMprViews(const Volume& volume)
             grid->addWidget(sv, positions[i][0], positions[i][1]);
             m_sliceViews << sv;
         }
+
+        // 右下：三维体绘制视图(默认骨窗)
+        m_volumeView = new VolumeView(m_viewContainer);
+        m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
+        grid->addWidget(m_volumeView, 1, 1);
     } else {
         // 已创建：重新加载新体数据到各视图
         for (SliceView* sv : m_sliceViews) {
             sv->setVolume(volume.imageData);
             sv->setSharedCursor(m_cursor);
         }
+        m_volumeView->setVolume(volume.imageData, TransferPreset::Bone);
     }
 
     setCentralWidget(m_viewContainer);

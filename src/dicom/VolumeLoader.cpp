@@ -9,6 +9,9 @@
 #include <itkImageToVTKImageFilter.h>
 #include <itkProcessObject.h>
 
+#include <vtkImageData.h>
+#include <vtkNew.h>
+
 #include <string>
 #include <vector>
 
@@ -90,7 +93,12 @@ Volume VolumeLoader::load(const QStringList& filePaths, ProgressCallback progres
         bridge->SetInput(reader->GetOutput());
         bridge->Update();
 
-        volume.imageData = bridge->GetOutput();
+        // ITK 桥接默认用 vtkImageImport 引用 ITK image 的缓冲区(不拷贝)，
+        // reader 在 load() 返回后销毁会导致标量数据悬空。这里 DeepCopy 让
+        // vtkImageData 拥有独立数据副本(体数据内存翻倍，但消除悬空隐患)。
+        vtkNew<vtkImageData> copied;
+        copied->DeepCopy(bridge->GetOutput());
+        volume.imageData = copied;
 
         // 提取几何信息(ITK 已根据 DICOM 自动解析)
         const ImageType* img = reader->GetOutput();

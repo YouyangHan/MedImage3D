@@ -89,7 +89,7 @@ ThirdParty\scripts\build_app.bat
 | 2 | DicomScanner + DicomTagReader（目录扫描 + 序列分组） | ✅ | [04](docs/04-DICOM扫描与序列分组.md) |
 | 3 | VolumeLoader + LoadThread + Volume + DataRepository | ✅ | [05](docs/05-体数据加载.md) |
 | 4 | ResliceViewer + SliceView（MPR 切片视图） | ✅ | [06](docs/06-MPR切片视图.md) |
-| 5 | VolumeView + TransferFunctionFactory（体绘制） | ⬜ | 07 |
+| 5 | VolumeView + TransferFunctionFactory（体绘制） | ✅ | [07](docs/07-体绘制视图.md) |
 | 6 | ViewManager 四视图联动 | ⬜ | 08 |
 | 7 | SeriesSelectDialog 序列选择界面 | ⬜ | 09 |
 | 8 | MainWindow + AppController 工作流状态机 | ⬜ | 10 |
@@ -102,6 +102,7 @@ ThirdParty\scripts\build_app.bat
 - [04 - DICOM 扫描与序列分组](docs/04-DICOM扫描与序列分组.md)：DicomScanner/DicomTagReader 数据导入与序列选择界面
 - [05 - 体数据加载](docs/05-体数据加载.md)：VolumeLoader(ITK GDCM)/LoadThread/Volume/DataRepository
 - [06 - MPR 切片视图](docs/06-MPR切片视图.md)：ResliceViewer/SliceView 三视图基础
+- [07 - 体绘制视图](docs/07-体绘制视图.md)：VolumeView/TransferFunctionFactory 三维体绘制与传递函数预设
 
 ## 许可证
 

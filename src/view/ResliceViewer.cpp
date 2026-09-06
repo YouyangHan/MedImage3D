@@ -26,9 +26,10 @@ void ResliceViewer::setVolume(vtkImageData* image)
 
     // SetInputData 内部已自动完成：cursor 的 SetImage/SetCenter、
     // 默认窗宽窗位(全范围)、重采样背景色(体素最小值)。
+    // 注意：不再调用 Reset()——它在轴对齐模式下会触发 InitializeReslicePlane/
+    // ResetCamera 访问 cursor 的 plane，与"先 SetInputData 后共享光标"的时序
+    // 交互时访问无效指针而崩溃(参考 3d-xmake 亦未调用 Reset)。
     this->SetInputData(image);
-
-    this->Reset();   // 重置光标/相机到体数据
 }
 
 void ResliceViewer::setSliceOrientation(int orientation)

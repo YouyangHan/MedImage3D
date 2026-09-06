@@ -1,0 +1,59 @@
+#include "VolumeView.h"
+
+#include "TransferFunctionFactory.h"
+
+#include <QVTKOpenGLNativeWidget.h>
+#include <vtkGenericOpenGLRenderWindow.h>
+#include <vtkInteractorStyleTrackballCamera.h>
+#include <vtkRenderer.h>
+#include <vtkSmartVolumeMapper.h>
+#include <vtkVolume.h>
+#include <vtkVolumeProperty.h>
+
+#include <QVBoxLayout>
+
+VolumeView::VolumeView(QWidget* parent)
+    : QWidget(parent)
+{
+    // VTK 渲染控件
+    m_vtkWidget = new QVTKOpenGLNativeWidget(this);
+    auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(m_vtkWidget);
+
+    // 渲染窗口 + 渲染器
+    m_renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
+    m_vtkWidget->setRenderWindow(m_renderWindow);
+
+    m_renderer = vtkSmartPointer<vtkRenderer>::New();
+    m_renderer->SetBackground(0.0, 0.0, 0.0);
+    m_renderWindow->AddRenderer(m_renderer);
+
+    // 三维视图交互：轨迹球旋转/缩放/平移
+    auto style = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
+    m_vtkWidget->interactor()->SetInteractorStyle(style);
+
+    // 体绘制管线：智能体绘制器(GPU 光线投射 + CPU 回退)
+    m_mapper = vtkSmartPointer<vtkSmartVolumeMapper>::New();
+    m_mapper->SetBlendModeToComposite();
+
+    m_volume = vtkSmartPointer<vtkVolume>::New();
+    m_volume->SetMapper(m_mapper);
+    m_renderer->AddVolume(m_volume);
+}
+
+VolumeView::~VolumeView() = default;
+
+void VolumeView::setVolume(vtkImageData* image, TransferPreset preset)
+{
+    m_mapper->SetInputData(image);
+    m_volume->SetProperty(TransferFunctionFactory::createVolumeProperty(preset));
+    m_renderer->ResetCamera();
+    m_vtkWidget->renderWindow()->Render();
+}
+
+void VolumeView::setPreset(TransferPreset preset)
+{
+    m_volume->SetProperty(TransferFunctionFactory::createVolumeProperty(preset));
+    m_vtkWidget->renderWindow()->Render();
+}

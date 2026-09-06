@@ -11,6 +11,7 @@
 class QProgressDialog;
 class SeriesSelectPanel;
 class SliceView;
+class VolumeView;
 
 /**
  * @brief 主窗口 —— 序列选择 + 体数据加载 + MPR 三视图(步骤 2~4)
@@ -45,8 +46,9 @@ private:
     QProgressDialog*   m_scanProgress = nullptr;  // 扫描进度弹窗
     QProgressDialog*   m_loadProgress = nullptr;  // 加载进度弹窗
 
-    // ---- MPR 三视图(步骤 4 临时容器, 步骤 6 由 ViewManager 接管) ----
-    QWidget* m_viewContainer = nullptr;           // 三视图容器
+    // ---- 四视图(步骤 4~5 临时容器, 步骤 6 由 ViewManager 接管) ----
+    QWidget* m_viewContainer = nullptr;           // 视图容器
     QList<SliceView*> m_sliceViews;               // 三个切片视图
+    VolumeView* m_volumeView = nullptr;           // 三维体绘制视图
     vtkSmartPointer<vtkResliceCursor> m_cursor;   // 共享十字线光标
 };

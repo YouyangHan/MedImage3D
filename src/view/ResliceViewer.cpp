@@ -93,8 +93,9 @@ void ResliceViewer::setVolume(vtkImageData* image)
             p->SetColor(colors[i][0], colors[i][1], colors[i][2]);
             p->SetEdgeColor(colors[i][0], colors[i][1], colors[i][2]);
             p->SetEdgeVisibility(1);
-            p->SetLighting(0);       // 线无需光照
-            p->SetLineWidth(3);      // 加粗，便于观察
+            p->SetLighting(0);                    // 线无需光照
+            p->SetLineWidth(3);                   // 加粗
+            p->SetRepresentationToWireframe();    // 线框表示，避免被图像遮挡
             std::cerr << " vis" << i << "=" << actor->GetCenterlineActor(i)->GetVisibility();
         }
     }

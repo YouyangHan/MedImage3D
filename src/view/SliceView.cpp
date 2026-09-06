@@ -18,6 +18,7 @@ SliceView::SliceView(QWidget* parent)
 
     // 渲染窗口与查看器绑定
     m_renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
+    m_renderWindow->SetMultiSamples(0);   // 禁用多重采样，避免十字线渲染异常
     m_viewer = vtkSmartPointer<ResliceViewer>::New();
     m_viewer->SetRenderWindow(m_renderWindow);
     m_vtkWidget->setRenderWindow(m_renderWindow);
